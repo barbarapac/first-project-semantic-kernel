@@ -1,46 +1,17 @@
-using first_project_semantic_kernel.Plugins;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.Ollama;
+using first_project_semantic_kernel.Services;
 
-var builder = Kernel.CreateBuilder()
-    .AddOllamaChatCompletion(
-        modelId: "llama3.1:latest",
-        endpoint:  new Uri("http://localhost:11434")
-    );
-    
-builder.Services.AddLogging(x => x.AddConsole().SetMinimumLevel(LogLevel.Trace));
- 
-var app = builder.Build();
-var chatCompletionService = app.Services.GetRequiredService<IChatCompletionService>();
-
-app.Plugins.AddFromType<ProductPlugins>("Plugins");
-
-OllamaPromptExecutionSettings settings = new()
-{
-    FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
-};
-
-var history = new ChatHistory();
+var kernel      = KernelService.CreateKernel();
+var chatService = new ChatService(kernel);
 
 string? input;
 
 do
 {
-    Console.Write("User > ");
-    input = Console.ReadLine();
+    input = ConsoleService.ReadUserInput();
     
-    if (!string.IsNullOrWhiteSpace(input))
+    if (ConsoleService.IsValidInput(input))
     {
-        history.AddUserMessage(input);   
-        var result = await chatCompletionService
-            .GetChatMessageContentAsync(
-                chatHistory: history,
-                executionSettings: settings,
-                kernel: app);
-    
-        Console.WriteLine($"Assistant > {result}");
-        
-        history.AddMessage(result.Role, result.Content ?? string.Empty);
+        var response = await chatService.SendMessageAsync(input!);
+        ConsoleService.WriteAssistantResponse(response);
     }
 } while (input is not null);
